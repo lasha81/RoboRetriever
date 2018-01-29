@@ -1,0 +1,10 @@
+{
+    "measure" : "reward",
+    "thresholds" : [0.1, 0.1],
+    "min_lesson_length" : 2,
+    "signal_smoothing" : false, 
+    "parameters" : 
+    {
+        "current_stage" : [3, 2, 3]
+    }
+}
