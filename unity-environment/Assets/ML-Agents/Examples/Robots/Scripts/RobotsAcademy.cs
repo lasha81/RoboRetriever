@@ -4,12 +4,12 @@ using UnityEngine;
 
 public class RobotsAcademy : Academy
 {
-    public float currentStage;
+    public int currentStage;
 
 
     public override void AcademyReset()
     {
-        currentStage = (float)resetParameters["current_stage"];
+        currentStage = (int)resetParameters["current_stage"];
     }
 
     public override void AcademyStep()

@@ -15,7 +15,7 @@ public class RobotsAgent : Agent
     public Material YellowMaterial;
 
 
-    public float CurrentStage;
+    public int CurrentStage;
 
     public bool Collided;
 
@@ -155,7 +155,7 @@ public class RobotsAgent : Agent
         
 
 
-        if (CurrentStage > 1.1f) { 
+        if (CurrentStage > 1) { 
             // not looking at same direction punishment
             //reward -= Mathf.Abs((RobotBallAngle - RobotGoalAngle)) / 5000f;
             
@@ -174,7 +174,7 @@ public class RobotsAgent : Agent
 
         /*
         // obstacle proximity increase punishment
-        if (CurrentStage > 2.1f)
+        if (CurrentStage > 2)
         {
             if (PrevNoseBallDist != -1) { 
                 for (int i = 0; i < Sensors.Length; i++) {
@@ -197,7 +197,7 @@ public class RobotsAgent : Agent
         }
 
         /*
-        if (CurrentStage < 1.1f)
+        if (CurrentStage == 1)
         {
             // robot reached ball
             if (NoseBallDist < 1.5f && NoseBallDist != -1)
@@ -219,7 +219,7 @@ public class RobotsAgent : Agent
             }/**/
 
         /*
-        if (CurrentStage > 2.1f)
+        if (CurrentStage > 2)
         {
             // collided with obstacle
             if (Collided)
