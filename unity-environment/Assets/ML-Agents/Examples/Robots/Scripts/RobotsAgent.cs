@@ -10,12 +10,10 @@ public class RobotsAgent : Agent
     public GameObject Goal;
     public GameObject Floor;
     public GameObject Academy;
-    public Material RedMaterial;
-    public Material GreenMaterial;
-    public Material YellowMaterial;
 
-
-    public int CurrentStage;
+    public bool GetToBall;
+    public bool RetrieveBall;
+    public bool AvoidObstacles;
 
     public bool Collided;
 
@@ -31,6 +29,7 @@ public class RobotsAgent : Agent
     public float PrevBallGoalDist = -1;
 
     public float[] SensorValues = new float[6];
+    public float[] SensorDistances = new float[6];
     public float[] PrevSensorValues =  new float[6];
 
     public RobotController robotController;
@@ -41,50 +40,61 @@ public class RobotsAgent : Agent
     private Vector3 NewPosition;
     private float RandomRange = 20f;
     private float SensorMaxDistance = 4f;
+    private bool IsFirstStep;
+
+
 
     public override List<float> CollectState()
     {
         List<float> state = new List<float>();
 
-
-        /*
-        float dist;
-        for (int i=0; i< Sensors.Length; i++)
-        {
-            dist = Sensors[i].GetDistance(SensorMaxDistance);
-            //state.Add((dist - SensorMaxDistance / 2) / (SensorMaxDistance / 2 ));
-            state.Add(1-(dist / SensorMaxDistance)); // 0 .. 1
-            //Debug.Log(1 - (dist / SensorMaxDistance));
+        
+        if (AvoidObstacles) { 
+            for (int i=0; i< Sensors.Length; i++)
+            {
+                SensorDistances[i] = Sensors[i].GetDistance(SensorMaxDistance);
+                SensorValues[i] = 1 - (SensorDistances[i] / SensorMaxDistance);
+                state.Add(SensorValues[i]); // 0 .. 1
+            }
         }
-        */
 
 
+        if (GetToBall)
+        {
+            Vector3 BallDir = Ball.transform.position - NoseTargetPoint.transform.position;
+            BallDir.y = 0;
 
-        Vector3 BallDir = Ball.transform.position - transform.position;
-        BallDir.y = 0;
-        Vector3 GoalDir = Goal.transform.position - transform.position;
-        GoalDir.y = 0;
+            float BallAngle = Vector3.SignedAngle(BallDir, transform.forward, Vector3.up); // -180 .. 180
+            state.Add(BallAngle / 180f); // -1 .. 1
+
+            float BallDistance = Vector3.Distance(NoseTargetPoint.transform.position, Ball.transform.position);
+            state.Add(BallDistance / 35f);
+
+        }
+
+        if (RetrieveBall)
+        {
+            Vector3 GoalDir = Goal.transform.position - NoseTargetPoint.transform.position;
+            GoalDir.y = 0;
+
+            float GoalAngle = Vector3.SignedAngle(GoalDir, transform.forward, Vector3.up);
+            state.Add(GoalAngle / 180f);
+
+            float GoalDistance = Vector3.Distance(NoseTargetPoint.transform.position, Goal.transform.position);
+            state.Add(GoalDistance / 35f);
+
+            state.Add(BallRB.velocity.x / 2f);
+            state.Add(BallRB.velocity.z / 2f);
+
+        }
+
 
         //state.Add(transform.position.x / 25f);// normalized to -1 .. 1
         //state.Add(transform.position.z / 25f);// normalized to -1 .. 1
         //Debug.Log(state.Add(transform.rotation.eulerAngles.y));
 
-        float BallAngle = Vector3.SignedAngle(BallDir, transform.forward, Vector3.up); // -180 .. 180
-        state.Add(BallAngle/180f); // -1 .. 1
         //state.Add((BallAngle+180) / 360f); // 0 .. 1
 
-
-        float GoalAngle = Vector3.SignedAngle(GoalDir, transform.forward, Vector3.up);
-        state.Add(GoalAngle / 180f);
-
-        float BallDistance = Vector3.Distance(transform.position, Ball.transform.position);
-        state.Add(BallDistance / 35f);
-
-        float GoalDistance = Vector3.Distance(transform.position, Goal.transform.position);
-        state.Add(GoalDistance / 35f);
-
-        
-        
         state.Add(RobotBodyRB.velocity.x / 2f); // -1 .. 1
         state.Add(RobotBodyRB.velocity.z / 2f); // -1 .. 1
         state.Add(RobotBodyRB.angularVelocity.y / 2.5f); // -1 .. 1
@@ -93,12 +103,7 @@ public class RobotsAgent : Agent
         //state.Add((RobotBodyRB.velocity.z + 2) / 4f);  // 0 .. 1
         //state.Add((RobotBodyRB.angularVelocity.y + 2.5f) / 5f); // 0 .. 1
 
-
-
-
-        state.Add(BallRB.velocity.x / 2f);
-        state.Add(BallRB.velocity.z / 2f);        
-
+     
 
         //Debug.Log("dist x = " + (Bullets.transform.position.x - gameObject.transform.position.x) + ", dist z = " + (Bullets.transform.position.z - gameObject.transform.position.z));
         return state;
@@ -113,6 +118,8 @@ public class RobotsAgent : Agent
         Vector3 BallDirection = Ball.transform.position - transform.position;
         BallDirection.y = 0;
         float RobotBallAngle = Vector3.SignedAngle(BallDirection, transform.forward, Vector3.up);
+        //float RobotMovementBallAngle = Vector3.SignedAngle(BallDirection, transform.forward, Vector3.up);
+
 
 
         Vector3 GoalDirection = Goal.transform.position - transform.position;
@@ -126,65 +133,52 @@ public class RobotsAgent : Agent
         float BallGoalDist = Vector3.Distance(Goal.transform.position, Ball.transform.position);
         float RobotGoalDist = Vector3.Distance(transform.position, Goal.transform.position);
 
-        /*
-        for (int i = 0; i < Sensors.Length; i++)
-        {
-            SensorValues[i] = 1 - (Sensors[i].GetDistance(SensorMaxDistance) / SensorMaxDistance);
-        }*/
+        if (AvoidObstacles) { 
+            for (int i = 0; i < Sensors.Length; i++)
+            {
+                SensorValues[i] = 1 - (Sensors[i].GetDistance(SensorMaxDistance) / SensorMaxDistance);
+            }
+        }
 
         //if (SensorValues[0]!=0) Debug.Log(SensorValues[0]);
 
         // time punishment
-        reward -= 0.01f;
-
-        // ball between reward
-        //if (BallGoalDist < RobotGoalDist) reward += 0.01f; else reward -= 0.01f;
-
-        
-        // nose getting closer to ball reward
-        if (PrevNoseBallDist != -1)  
+        //reward = 0.005f;
+    
+        if (!IsFirstStep)
         {
-            reward += (PrevNoseBallDist - NoseBallDist);
-        }
-
-        // look at ball reward
-        if (PrevRobotBallAngle != -1) {
-            reward += (PrevRobotBallAngle - Mathf.Abs(RobotBallAngle)) / 180f;
-        }
-
-        
-
-
-        if (CurrentStage > 1) { 
-            // not looking at same direction punishment
-            //reward -= Mathf.Abs((RobotBallAngle - RobotGoalAngle)) / 5000f;
-            
-            // ball getting closer to goal reward
-            if (BallGoalDist != -1)
+            if (GetToBall)
             {
+                /*// nose getting closer to ball reward
+                reward += (PrevNoseBallDist - NoseBallDist);
+                // look at ball reward
+                reward += (PrevRobotBallAngle - Mathf.Abs(RobotBallAngle)) / 180f;*/
+                reward = - Mathf.Abs(RobotBallAngle)/500f - 0.005f * NoseBallDist;
+                //Debug.Log(reward);
+            }
+
+            if (RetrieveBall)
+            {
+
+                // ball getting closer to goal reward
                 reward += (PrevBallGoalDist - BallGoalDist) * 2f;
-            }/**/
 
-            // look at goal reward
-            if (PrevRobotGoalAngle != -1)
-            {
+                // look at goal reward
                 reward += (PrevRobotGoalAngle - Mathf.Abs(RobotGoalAngle)) / 180f;
-            }/**/
-        }
+            }
 
-        /*
-        // obstacle proximity increase punishment
-        if (CurrentStage > 2)
-        {
-            if (PrevNoseBallDist != -1) { 
-                for (int i = 0; i < Sensors.Length; i++) {
-                    reward -= 4*SensorValues[i]*(SensorValues[i] - PrevSensorValues[i]);
+            // obstacle proximity increase punishment
+            if (AvoidObstacles)
+            {
+                for (int i = 0; i < Sensors.Length; i++)
+                {
+                    reward -= 4 * SensorValues[i] * (SensorValues[i] - PrevSensorValues[i]);
                     //if (i == 0 && SensoeValues[i] != PrevSensorValues[i]) Debug.Log(SensoeValues[i] - PrevSensorValues[i]);
                 }
             }
-
         }
-        */
+
+
         ///// endings
 
 
@@ -196,30 +190,30 @@ public class RobotsAgent : Agent
             reward = -1f;
         }
 
-        /*
-        if (CurrentStage == 1)
+        if (GetToBall && !RetrieveBall)
         {
             // robot reached ball
-            if (NoseBallDist < 1.5f && NoseBallDist != -1)
+            if (NoseBallDist < 1.5f)
             {
                 //Debug.Log("Reached ball");
                 done = true;
                 reward = 1f;
-            }
+            }/**/
         }
-       /**/
 
 
-        // ball reached goal
-        if (BallGoalDist < (1.5f + 0.25f) && BallGoalDist != -1)
+        if (RetrieveBall) { 
+            // ball reached goal
+            if (BallGoalDist < (1.5f + 0.25f))
             {
                 //Debug.Log("Reached goal");
                 done = true;
                 reward = 1f;
             }/**/
+        }
 
-        /*
-        if (CurrentStage > 2)
+
+        if (AvoidObstacles)
         {
             // collided with obstacle
             if (Collided)
@@ -227,8 +221,8 @@ public class RobotsAgent : Agent
                 //Debug.Log("Collided");
                 done = true;
                 reward = -1f;
-            }
-        }/**/
+            }/**/
+        }
 
 
         PrevNoseBallDist = NoseBallDist;
@@ -236,32 +230,30 @@ public class RobotsAgent : Agent
         PrevRobotGoalAngle = Mathf.Abs(RobotGoalAngle);
         PrevBallGoalDist = BallGoalDist;
 
-        /*
-        for (int i = 0; i < Sensors.Length; i++)
+        if (AvoidObstacles)
         {
-            PrevSensorValues[i] = SensorValues[i];
+            for (int i = 0; i < Sensors.Length; i++)
+            {
+                PrevSensorValues[i] = SensorValues[i];
+            }
         }
-        */
 
-
+        IsFirstStep = false;
     }
 
 
     public override void AgentReset()
     {
         //Debug.Log("reset");
-        CurrentStage = Academy.GetComponent<RobotsAcademy>().currentStage;
-
-        //if (CurrentStage == 1) Floor.GetComponentInChildren<MeshRenderer>().material = YellowMaterial;
-        //if (CurrentStage == 2) Floor.GetComponentInChildren<MeshRenderer>().material = RedMaterial;
-
-
+   
+        GetToBall = Academy.GetComponent<RobotsAcademy>().GetToBall;
+        RetrieveBall = Academy.GetComponent<RobotsAcademy>().RetrieveBall;
+        AvoidObstacles = Academy.GetComponent<RobotsAcademy>().AvoidObstacles;
 
 
-        PrevNoseBallDist = -1;
-        PrevRobotBallAngle = -1;
-        PrevRobotGoalAngle = -1;
-        PrevBallGoalDist = -1;
+
+
+        IsFirstStep = true;
 
         ObjectPositions.Clear();
         Collided = false;
@@ -271,11 +263,10 @@ public class RobotsAgent : Agent
         Ball.transform.position = GetNewPosition(0.25f);
         Goal.transform.position = GetNewPosition(0.05f);
 
-        /*
         foreach (GameObject Obstacle in Obstacles)
         {
             Obstacle.transform.position = GetNewPosition(0.05f);
-        }*/
+        }
 
 
 
