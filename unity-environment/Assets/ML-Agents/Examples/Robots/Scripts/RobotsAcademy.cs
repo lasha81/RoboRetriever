@@ -4,11 +4,8 @@ using UnityEngine;
 
 public class RobotsAcademy : Academy
 {
-
-    public bool GetToBall;
-    public bool RetrieveBall;
-    public bool AvoidObstacles;
-
+    [HideInInspector]
+    public bool GetToBall, RetrieveBall, AvoidObstacles;
 
     public override void AcademyReset()
     {

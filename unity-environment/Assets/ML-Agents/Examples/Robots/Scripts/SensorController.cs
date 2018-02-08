@@ -5,14 +5,24 @@ using UnityEngine;
 public class SensorController : MonoBehaviour {
 
     public LayerMask lm;
-    public GameObject StartingPoint;
+    public GameObject StartPoint;
+    public GameObject EndPoint;
+    public GeneralSensorController generalSensorController;
+    public GameObject obstacle;
 
     public float GetDistance(float MaxDistance)
     {
-        RaycastHit hit;
-        if (Physics.Raycast(StartingPoint.transform.position, transform.forward, out hit, MaxDistance, lm))
+        if (generalSensorController.isInsideObstacle)
         {
-            return Vector3.Distance(hit.point, StartingPoint.transform.position);
+            obstacle = generalSensorController.obstacle;
+            return 0;
+        }
+
+        RaycastHit hit;
+        if (Physics.Raycast(StartPoint.transform.position, EndPoint.transform.position - StartPoint.transform.position, out hit, MaxDistance, lm))
+        {
+            obstacle = hit.collider.gameObject;
+            return Vector3.Distance(hit.point, StartPoint.transform.position);
         }
         else return MaxDistance;
     }
